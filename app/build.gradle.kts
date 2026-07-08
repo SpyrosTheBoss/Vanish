@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.vanish"
+    namespace = "com.spilol2.vanish"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
@@ -12,7 +12,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.vanish"
+        applicationId = "com.spilol2.vanish"
         minSdk = 29
         targetSdk = 36
         versionCode = 1
