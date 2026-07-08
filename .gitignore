@@ -13,3 +13,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# model export byproducts
+models_export/
+*.pt

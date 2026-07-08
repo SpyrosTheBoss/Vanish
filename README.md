@@ -9,7 +9,7 @@
 
 ---
 
-Vanish is the mobile companion to [WatermarkRemover-AI-Revamped](https://github.com/SpyrosTheBoss/WatermarkRemover-AI-Revamped). Point it at any photo, tap the thing you want gone, and an AI model rebuilds the background behind it — all on the phone, no upload.
+Vanish grew out of [WatermarkRemover-AI-Revamped](https://github.com/SpyrosTheBoss/WatermarkRemover-AI-Revamped) and is now its own app. Point it at any photo, tap the thing you want gone, and an AI model rebuilds the background behind it — all on the phone, no upload.
 
 ## Features
 
@@ -26,7 +26,7 @@ Vanish is the mobile companion to [WatermarkRemover-AI-Revamped](https://github.
 | Select (tap) | MobileSAM (TinyViT encoder + decoder, ONNX) | once per photo + per tap |
 | Erase | MI-GAN or LaMa (ONNX Runtime Mobile) | per removal |
 
-Both stages run locally through ONNX Runtime. The `scripts/` folder in the parent repo documents how each model was exported and verified.
+Both stages run locally through ONNX Runtime. The `scripts/` folder documents how each model was exported and verified.
 
 ## Build
 
