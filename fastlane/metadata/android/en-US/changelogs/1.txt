@@ -1,0 +1,3 @@
+First release.
+
+On-device object and watermark removal with tap-to-select (MobileSAM) and MI-GAN / LaMa inpainting.

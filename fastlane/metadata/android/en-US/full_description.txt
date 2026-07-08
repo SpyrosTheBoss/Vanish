@@ -1,0 +1,17 @@
+Vanish removes objects and watermarks from your photos, entirely on your device.
+
+Tap the thing you want gone and an AI segmentation model outlines it exactly; an inpainting model then rebuilds the background behind it. Lasso and brush tools are there when you want manual control.
+
+Nothing is uploaded — all detection and inpainting runs locally.
+
+Features:
+
+* Tap-to-select powered by MobileSAM
+* On-device inpainting with MI-GAN (bundled, fast)
+* Optional higher-quality LaMa model, downloaded on demand
+* Lasso and brush masking, with undo/redo
+* Before/after comparison slider
+* Save to gallery and share
+* Material 3 design with dynamic color (Material You) and a themed icon
+
+Runs fully offline. The only network use is the optional one-time download of the LaMa model if you choose it in Settings.

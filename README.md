@@ -39,3 +39,7 @@ Open the `Vanish/` folder in Android Studio (JDK 17+, minSdk 29) and run. The MI
 ## Credits
 
 Inpainting models via [IOPaint](https://github.com/Sanster/IOPaint) (MI-GAN, LaMa). Segmentation via [MobileSAM](https://github.com/ChaoningZhang/MobileSAM). LaMa ONNX from [Carve/LaMa-ONNX](https://huggingface.co/Carve/LaMa-ONNX).
+
+## License
+
+[GPL-3.0](LICENSE). Model credits: MI-GAN and LaMa via [IOPaint](https://github.com/Sanster/IOPaint), segmentation via [MobileSAM](https://github.com/ChaoningZhang/MobileSAM).

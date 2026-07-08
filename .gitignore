@@ -17,3 +17,9 @@ local.properties
 # model export byproducts
 models_export/
 *.pt
+
+# release signing secrets — never commit
+keystore.properties
+keystore/
+*.jks
+*.keystore
