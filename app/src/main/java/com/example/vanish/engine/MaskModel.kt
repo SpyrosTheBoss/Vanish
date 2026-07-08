@@ -17,6 +17,10 @@ sealed interface Stroke {
 
     /** Lasso: a closed loop that gets filled. */
     data class Lasso(val points: List<FloatArray>) : Stroke
+
+    /** A pixel region (e.g. from tap-to-segment): opaque white where selected,
+     *  transparent elsewhere, at full image resolution. */
+    data class Region(val mask: Bitmap) : Stroke
 }
 
 object MaskRaster {
@@ -62,6 +66,7 @@ object MaskRaster {
                     canvas.drawPath(path, paint)
                 }
             }
+            is Stroke.Region -> canvas.drawBitmap(s.mask, 0f, 0f, null)
         }
         return bmp
     }
@@ -71,6 +76,7 @@ object MaskRaster {
         when (it) {
             is Stroke.Brush -> it.points.isNotEmpty()
             is Stroke.Lasso -> it.points.size >= 3
+            is Stroke.Region -> true
         }
     }
 }

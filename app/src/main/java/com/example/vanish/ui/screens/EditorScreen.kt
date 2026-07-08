@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.example.vanish.engine.Inpainter
 import com.example.vanish.engine.MaskRaster
+import com.example.vanish.engine.Segmenter
 import com.example.vanish.engine.Stroke
 import com.example.vanish.ui.AppState
 import com.example.vanish.ui.Screen
@@ -86,6 +87,7 @@ private fun fitOf(canvas: Size, iw: Int, ih: Int): Fit {
 fun EditorScreen(
     state: AppState,
     inpainter: Inpainter,
+    segmenter: Segmenter,
     onBack: () -> Unit,
 ) {
     val src = state.source ?: return
@@ -99,8 +101,17 @@ fun EditorScreen(
         if (toast != null) { kotlinx.coroutines.delay(2200); toast = null }
     }
 
+    // Encode the photo for tap-to-segment as soon as it opens (runs ~1-2s).
+    LaunchedEffect(src) {
+        state.encoding = true
+        state.embedding = try { segmenter.encode(src) } catch (e: Exception) { null }
+        state.encoding = false
+    }
+
     // live stroke being drawn (image-space points)
     val live = remember { mutableStateListOf<Offset>() }
+    // cache tinted overlays for segment regions (convert each mask once)
+    val regionOverlay = remember(src) { HashMap<Stroke.Region, androidx.compose.ui.graphics.ImageBitmap>() }
 
     fun remove() {
         if (MaskRaster.isEmpty(state.strokes)) { toast = "Circle something to remove first"; return }
@@ -128,8 +139,19 @@ fun EditorScreen(
                 .fillMaxSize()
                 .pointerInput(state.tool, state.brushRadius) {
                     when (state.tool) {
-                        Tool.Tap -> detectTapGestures {
-                            toast = "Tap-to-segment is coming soon — use lasso or brush for now"
+                        Tool.Tap -> detectTapGestures { pos ->
+                            val fit = fitOf(Size(size.width.toFloat(), size.height.toFloat()), img.width, img.height)
+                            val p = fit.toImage(pos)
+                            if (p.x < 0 || p.y < 0 || p.x >= img.width || p.y >= img.height) return@detectTapGestures
+                            val emb = state.embedding
+                            when {
+                                emb == null && state.encoding -> toast = "Preparing tap-to-select…"
+                                emb == null -> toast = "Tap-to-select unavailable — use lasso or brush"
+                                else -> scope.launch {
+                                    val mask = segmenter.segment(emb, p.x, p.y)
+                                    state.addStroke(Stroke.Region(mask))
+                                }
+                            }
                         }
                         Tool.Brush, Tool.Lasso -> detectDragGestures(
                             onDragStart = { pos ->
@@ -162,7 +184,20 @@ fun EditorScreen(
                 dstOffset = IntOffset(fit.dx.toInt(), fit.dy.toInt()),
                 dstSize = IntSize((img.width * fit.scale).toInt(), (img.height * fit.scale).toInt()),
             )
-            for (s in state.strokes) drawStroke(s, fit, sel, committed = true)
+            for (s in state.strokes) {
+                if (s is Stroke.Region) {
+                    val ib = regionOverlay.getOrPut(s) { s.mask.asImageBitmap() }
+                    drawImage(
+                        image = ib,
+                        dstOffset = IntOffset(fit.dx.toInt(), fit.dy.toInt()),
+                        dstSize = IntSize((img.width * fit.scale).toInt(), (img.height * fit.scale).toInt()),
+                        alpha = 0.45f,
+                        colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(sel),
+                    )
+                } else {
+                    drawStroke(s, fit, sel, committed = true)
+                }
+            }
             // live preview
             if (live.isNotEmpty()) {
                 val pts = live.map { floatArrayOf(it.x, it.y) }
@@ -246,5 +281,6 @@ private fun DrawScope.drawStroke(s: Stroke, fit: Fit, color: Color, committed: B
                 style = DrawStroke(width = 2f, cap = StrokeCap.Round, join = StrokeJoin.Round),
             )
         }
+        is Stroke.Region -> Unit // regions are drawn separately (bitmap + tint)
     }
 }

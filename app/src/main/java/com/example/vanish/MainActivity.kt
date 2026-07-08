@@ -10,6 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.example.vanish.engine.OnnxInpainter
+import com.example.vanish.engine.Segmenter
 import com.example.vanish.ui.AppState
 import com.example.vanish.ui.VanishApp
 import com.example.vanish.ui.theme.VanishTheme
@@ -22,9 +23,10 @@ class MainActivity : ComponentActivity() {
             val state = remember { AppState() }
             val context = LocalContext.current
             val inpainter = remember { OnnxInpainter(context) }
+            val segmenter = remember { Segmenter(context) }
             VanishTheme(dynamicColor = state.dynamicColor) {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    VanishApp(state = state, inpainter = inpainter)
+                    VanishApp(state = state, inpainter = inpainter, segmenter = segmenter)
                 }
             }
         }

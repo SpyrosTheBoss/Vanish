@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import com.example.vanish.engine.InpaintModelId
+import com.example.vanish.engine.SamEmbedding
 import com.example.vanish.engine.Stroke
 
 enum class Screen { Home, Editor, Result, Settings }
@@ -36,6 +37,10 @@ class AppState {
     var busy by mutableStateOf(false) // processing spinner
     var lastMs by mutableStateOf(0L)  // last inpaint duration, shown on Result
 
+    // tap-to-segment: per-photo image encoding
+    var embedding by mutableStateOf<SamEmbedding?>(null)
+    var encoding by mutableStateOf(false)
+
     // settings
     var inpaintModel by mutableStateOf(InpaintModelId.MIGAN)
     var dynamicColor by mutableStateOf(true)
@@ -61,6 +66,7 @@ class AppState {
     fun openEditor(bmp: Bitmap) {
         source = bmp
         result = null
+        embedding = null
         strokes.clear()
         redo.clear()
         // scale a sensible default brush to the photo's size (~4% of min edge)

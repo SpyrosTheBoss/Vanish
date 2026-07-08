@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.example.vanish.engine.Inpainter
+import com.example.vanish.engine.Segmenter
 import com.example.vanish.engine.StubInpainter
 import com.example.vanish.ui.screens.EditorScreen
 import com.example.vanish.ui.screens.HomeScreen
@@ -20,6 +21,7 @@ import com.example.vanish.ui.screens.SettingsScreen
 @Composable
 fun VanishApp(
     state: AppState,
+    segmenter: Segmenter,
     modifier: Modifier = Modifier,
     inpainter: Inpainter = remember { StubInpainter() },
 ) {
@@ -48,6 +50,7 @@ fun VanishApp(
             Screen.Editor -> EditorScreen(
                 state = state,
                 inpainter = inpainter,
+                segmenter = segmenter,
                 onBack = { state.screen = Screen.Home },
             )
             Screen.Result -> ResultScreen(

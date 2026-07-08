@@ -46,8 +46,13 @@ class OnnxInpainter(context: Context) : Inpainter {
             val w = source.width
             val h = source.height
 
+            // Grow the mask a few pixels so the object's own edge pixels are
+            // covered too — a pixel-tight mask (e.g. from tap-to-segment) leaves
+            // the dark rim as "context" and the model blends it back in.
+            val dilated = dilate(mask, (minOf(w, h) / 180).coerceIn(4, 20))
+
             val mPix = IntArray(w * h)
-            mask.getPixels(mPix, 0, w, 0, 0, w, h)
+            dilated.getPixels(mPix, 0, w, 0, 0, w, h)
             var minX = w; var minY = h; var maxX = -1; var maxY = -1
             for (y in 0 until h) {
                 val row = y * w
@@ -70,7 +75,7 @@ class OnnxInpainter(context: Context) : Inpainter {
             val top = (cy - side / 2).coerceIn(0, h - side)
 
             val cropSrc = Bitmap.createBitmap(source, left, top, side, side)
-            val cropMask = Bitmap.createBitmap(mask, left, top, side, side)
+            val cropMask = Bitmap.createBitmap(dilated, left, top, side, side)
             val src512 = cropSrc.scaleTo(SIZE)
             val mask512 = cropMask.scaleTo(SIZE)
 
@@ -172,6 +177,36 @@ class OnnxInpainter(context: Context) : Inpainter {
     }
 
     private fun Bitmap.scaleTo(size: Int): Bitmap = Bitmap.createScaledBitmap(this, size, size, true)
+
+    /** Binary dilation of the mask (red channel) by [r] px, separable H then V. */
+    private fun dilate(mask: Bitmap, r: Int): Bitmap {
+        val w = mask.width; val h = mask.height
+        if (r <= 0) return mask
+        val src = IntArray(w * h); mask.getPixels(src, 0, w, 0, 0, w, h)
+        val on = BooleanArray(w * h) { (src[it] ushr 16 and 0xFF) >= 128 }
+        val tmp = BooleanArray(w * h)
+        for (y in 0 until h) {
+            val row = y * w
+            for (x in 0 until w) {
+                var any = false
+                val x0 = (x - r).coerceAtLeast(0); val x1 = (x + r).coerceAtMost(w - 1)
+                var k = x0
+                while (k <= x1) { if (on[row + k]) { any = true; break }; k++ }
+                tmp[row + x] = any
+            }
+        }
+        val out = IntArray(w * h)
+        for (x in 0 until w) {
+            for (y in 0 until h) {
+                var any = false
+                val y0 = (y - r).coerceAtLeast(0); val y1 = (y + r).coerceAtMost(h - 1)
+                var k = y0
+                while (k <= y1) { if (tmp[k * w + x]) { any = true; break }; k++ }
+                out[y * w + x] = if (any) 0xFFFFFFFF.toInt() else 0
+            }
+        }
+        return Bitmap.createBitmap(out, w, h, Bitmap.Config.ARGB_8888)
+    }
 
     companion object { private const val SIZE = 512 }
 }
