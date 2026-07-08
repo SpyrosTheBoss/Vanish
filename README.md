@@ -7,6 +7,10 @@
 
 <p align="center"><b>On-device object &amp; watermark eraser for Android — tap it, and it's gone.</b></p>
 
+<p align="center">
+  <a href="https://github.com/SpyrosTheBoss/Vanish/releases/latest"><img src="https://img.shields.io/badge/Download-APK-0F766E?style=for-the-badge&logo=android&logoColor=white" alt="Download APK"></a>
+</p>
+
 ---
 
 Vanish grew out of [WatermarkRemover-AI-Revamped](https://github.com/SpyrosTheBoss/WatermarkRemover-AI-Revamped) and is now its own app. Point it at any photo, tap the thing you want gone, and an AI model rebuilds the background behind it — all on the phone, no upload.
