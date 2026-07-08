@@ -6,13 +6,12 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import com.example.vanish.engine.InpaintModelId
 import com.example.vanish.engine.Stroke
 
 enum class Screen { Home, Editor, Result, Settings }
 
 enum class Tool { Tap, Lasso, Brush }
-
-enum class Quality { Fast, Balanced, Best }
 
 /**
  * Single source of truth for the whole (small) app. Held in a `remember` at the
@@ -38,7 +37,7 @@ class AppState {
     var lastMs by mutableStateOf(0L)  // last inpaint duration, shown on Result
 
     // settings
-    var quality by mutableStateOf(Quality.Balanced)
+    var inpaintModel by mutableStateOf(InpaintModelId.MIGAN)
     var dynamicColor by mutableStateOf(true)
     var hapticsOnRemove by mutableStateOf(true)
     var keepOriginal by mutableStateOf(true)

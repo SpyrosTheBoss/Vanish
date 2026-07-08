@@ -111,7 +111,7 @@ fun EditorScreen(
                 MaskRaster.toBitmap(src.width, src.height, state.strokes)
             }
             val t0 = System.currentTimeMillis()
-            val out = inpainter.inpaint(src, mask)
+            val out = inpainter.inpaint(src, mask, state.inpaintModel)
             state.lastMs = System.currentTimeMillis() - t0
             state.result = out
             state.busy = false

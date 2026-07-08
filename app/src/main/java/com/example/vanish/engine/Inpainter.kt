@@ -13,7 +13,7 @@ import kotlinx.coroutines.withContext
  *               red >= 128 means erase.
  */
 interface Inpainter {
-    suspend fun inpaint(source: Bitmap, mask: Bitmap): Bitmap
+    suspend fun inpaint(source: Bitmap, mask: Bitmap, model: InpaintModelId): Bitmap
 }
 
 /**
@@ -24,7 +24,7 @@ interface Inpainter {
  * flow can be exercised. Replaced by OnnxInpainter in the MI-GAN integration.
  */
 class StubInpainter : Inpainter {
-    override suspend fun inpaint(source: Bitmap, mask: Bitmap): Bitmap =
+    override suspend fun inpaint(source: Bitmap, mask: Bitmap, model: InpaintModelId): Bitmap =
         withContext(Dispatchers.Default) {
             val w = source.width
             val h = source.height
