@@ -9,11 +9,24 @@
 
 <p align="center">
   <a href="https://github.com/SpyrosTheBoss/Vanish/releases/latest"><img src="https://img.shields.io/badge/Download-APK-0F766E?style=for-the-badge&logo=android&logoColor=white" alt="Download APK"></a>
+  <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/SpyrosTheBoss/Vanish"><img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" alt="Get it on Obtainium" height="42"></a>
 </p>
 
 ---
 
 Vanish grew out of [WatermarkRemover-AI-Revamped](https://github.com/SpyrosTheBoss/WatermarkRemover-AI-Revamped) and is now its own app. Point it at any photo, tap the thing you want gone, and an AI model rebuilds the background behind it — all on the phone, no upload.
+
+## Install
+
+**[Obtainium](https://github.com/ImranR98/Obtainium)** (recommended) — tracks this GitHub repo's releases and auto-updates the app for you, no store account needed:
+
+1. Install Obtainium if you don't have it.
+2. Tap the badge above, or in Obtainium choose **Add App** and paste `https://github.com/SpyrosTheBoss/Vanish`.
+3. Obtainium picks up the latest signed release automatically, and again on every future tag.
+
+**Manual APK** — grab the signed APK straight from the [latest release](https://github.com/SpyrosTheBoss/Vanish/releases/latest) and sideload it. You'll need to update it by hand when a new version ships.
+
+Vanish isn't on Google Play or F-Droid — the bundled ML models push it over F-Droid/IzzyOnDroid's size limits, and their inclusion policy is opposed to AI-assisted development, which this project doesn't hide from.
 
 ## Features
 
