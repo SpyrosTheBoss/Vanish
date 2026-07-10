@@ -38,6 +38,32 @@ fun saveToGallery(context: Context, bmp: Bitmap): Uri? {
     }
 }
 
+/** The most recent images Vanish has saved to the gallery, newest first. */
+fun queryRecentEdits(context: Context, limit: Int = 6): List<Uri> {
+    val resolver = context.contentResolver
+    val projection = arrayOf(MediaStore.Images.Media._ID)
+    val selection: String?
+    val args: Array<String>?
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        selection = "${MediaStore.Images.Media.RELATIVE_PATH} = ?"
+        args = arrayOf("Pictures/Vanish/")
+    } else {
+        selection = null
+        args = null
+    }
+    val sort = "${MediaStore.Images.Media.DATE_ADDED} DESC"
+    val uris = mutableListOf<Uri>()
+    resolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, projection, selection, args, sort)?.use { cursor ->
+        val idCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+        while (cursor.moveToNext() && uris.size < limit) {
+            uris.add(
+                Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cursor.getLong(idCol).toString())
+            )
+        }
+    }
+    return uris
+}
+
 /** Fire the system share sheet for an image [uri]. */
 fun shareImage(context: Context, uri: Uri) {
     val send = Intent(Intent.ACTION_SEND).apply {

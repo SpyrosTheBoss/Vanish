@@ -1,5 +1,7 @@
 package com.spilol2.vanish.ui
 
+import android.content.Context
+import android.content.SharedPreferences
 import android.graphics.Bitmap
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -14,12 +16,24 @@ enum class Screen { Home, Editor, Result, Settings }
 
 enum class Tool { Tap, Lasso, Brush }
 
+private const val PREFS_NAME = "vanish_prefs"
+private const val KEY_MODEL = "inpaint_model"
+private const val KEY_DYNAMIC_COLOR = "dynamic_color"
+private const val KEY_HAPTICS = "haptics_on_remove"
+private const val KEY_KEEP_ORIGINAL = "keep_original"
+
 /**
  * Single source of truth for the whole (small) app. Held in a `remember` at the
  * root so it survives screen switches without a navigation library or a
  * ViewModel — a 4-screen tool doesn't need either.
+ *
+ * Settings (model choice, toggles) are backed by SharedPreferences so they
+ * survive process death, not just screen navigation.
  */
-class AppState {
+class AppState(context: Context) {
+    private val prefs: SharedPreferences =
+        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
     var screen by mutableStateOf(Screen.Home)
 
     /** The photo being edited (null until one is picked). */
@@ -41,11 +55,31 @@ class AppState {
     var embedding by mutableStateOf<SamEmbedding?>(null)
     var encoding by mutableStateOf(false)
 
-    // settings
-    var inpaintModel by mutableStateOf(InpaintModelId.MIGAN)
-    var dynamicColor by mutableStateOf(true)
-    var hapticsOnRemove by mutableStateOf(true)
-    var keepOriginal by mutableStateOf(true)
+    // settings — each persists to SharedPreferences immediately on write, so a
+    // fully-closed-and-reopened app remembers your model choice and toggles.
+    private val _inpaintModel = mutableStateOf(
+        prefs.getString(KEY_MODEL, null)?.let { saved ->
+            InpaintModelId.entries.find { it.name == saved }
+        } ?: InpaintModelId.MIGAN
+    )
+    var inpaintModel: InpaintModelId
+        get() = _inpaintModel.value
+        set(v) { _inpaintModel.value = v; prefs.edit().putString(KEY_MODEL, v.name).apply() }
+
+    private val _dynamicColor = mutableStateOf(prefs.getBoolean(KEY_DYNAMIC_COLOR, true))
+    var dynamicColor: Boolean
+        get() = _dynamicColor.value
+        set(v) { _dynamicColor.value = v; prefs.edit().putBoolean(KEY_DYNAMIC_COLOR, v).apply() }
+
+    private val _hapticsOnRemove = mutableStateOf(prefs.getBoolean(KEY_HAPTICS, true))
+    var hapticsOnRemove: Boolean
+        get() = _hapticsOnRemove.value
+        set(v) { _hapticsOnRemove.value = v; prefs.edit().putBoolean(KEY_HAPTICS, v).apply() }
+
+    private val _keepOriginal = mutableStateOf(prefs.getBoolean(KEY_KEEP_ORIGINAL, true))
+    var keepOriginal: Boolean
+        get() = _keepOriginal.value
+        set(v) { _keepOriginal.value = v; prefs.edit().putBoolean(KEY_KEEP_ORIGINAL, v).apply() }
 
     val canUndo: Boolean get() = strokes.isNotEmpty()
     val canRedo: Boolean get() = redo.isNotEmpty()

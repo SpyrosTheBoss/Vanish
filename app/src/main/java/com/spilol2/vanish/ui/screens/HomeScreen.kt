@@ -2,11 +2,13 @@ package com.spilol2.vanish.ui.screens
 
 import android.graphics.Bitmap
 import android.net.Uri
+import android.util.Size
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +19,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoFixHigh
@@ -38,14 +43,24 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.spilol2.vanish.util.Haptics
 import com.spilol2.vanish.util.decodeBitmap
+import com.spilol2.vanish.util.loadThumbnail
+import com.spilol2.vanish.util.queryRecentEdits
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -58,6 +73,7 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val haptics = remember { Haptics(context) }
 
     val picker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
@@ -71,6 +87,13 @@ fun HomeScreen(
         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
     )
 
+    // Re-queried every time Home is (re)composed — which happens every time
+    // you navigate back to it, so a fresh save always shows up.
+    var recents by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    LaunchedEffect(Unit) {
+        recents = withContext(Dispatchers.IO) { queryRecentEdits(context) }
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -82,7 +105,7 @@ fun HomeScreen(
                     )
                 },
                 actions = {
-                    IconButton(onClick = onOpenSettings) {
+                    IconButton(onClick = { haptics.tick(); onOpenSettings() }) {
                         Icon(Icons.Rounded.Settings, contentDescription = "Settings")
                     }
                 },
@@ -138,7 +161,7 @@ fun HomeScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Button(
-                            onClick = { pick() },
+                            onClick = { haptics.click(); pick() },
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
@@ -149,7 +172,7 @@ fun HomeScreen(
                             Spacer(Modifier.size(8.dp))
                             Text("Choose photo")
                         }
-                        FilledTonalIconButton(onClick = { pick() }) {
+                        FilledTonalIconButton(onClick = { haptics.click(); pick() }) {
                             Icon(Icons.Rounded.PhotoCamera, contentDescription = "Camera")
                         }
                     }
@@ -183,7 +206,52 @@ fun HomeScreen(
 
             Spacer(Modifier.height(4.dp))
             Text("Recent", style = MaterialTheme.typography.titleMedium)
-            EmptyRecents()
+            if (recents.isEmpty()) {
+                EmptyRecents()
+            } else {
+                RecentGrid(recents) { uri ->
+                    scope.launch {
+                        val bmp = withContext(Dispatchers.IO) { decodeBitmap(context, uri) }
+                        if (bmp != null) { haptics.tick(); onPickPhoto(bmp) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecentGrid(uris: List<Uri>, onOpen: (Uri) -> Unit) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(3),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().height(160.dp),
+    ) {
+        items(uris) { uri -> RecentThumb(uri, onClick = { onOpen(uri) }) }
+    }
+}
+
+@Composable
+private fun RecentThumb(uri: Uri, onClick: () -> Unit) {
+    val context = LocalContext.current
+    var bmp by remember(uri) { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(uri) {
+        bmp = withContext(Dispatchers.IO) { loadThumbnail(context, uri, Size(200, 200)) }
+    }
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+            .clickable { onClick() },
+    ) {
+        bmp?.let {
+            androidx.compose.foundation.Image(
+                it.asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxWidth().height(96.dp),
+            )
         }
     }
 }

@@ -20,8 +20,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            val state = remember { AppState() }
             val context = LocalContext.current
+            val state = remember { AppState(context) }
             val inpainter = remember { OnnxInpainter(context) }
             val segmenter = remember { Segmenter(context) }
             VanishTheme(dynamicColor = state.dynamicColor) {

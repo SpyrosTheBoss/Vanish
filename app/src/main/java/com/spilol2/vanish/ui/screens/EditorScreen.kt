@@ -1,5 +1,10 @@
 package com.spilol2.vanish.ui.screens
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -30,7 +35,6 @@ import androidx.compose.material.icons.rounded.Gesture
 import androidx.compose.material.icons.rounded.Redo
 import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material.icons.rounded.Undo
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -38,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,9 +59,10 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke as DrawStroke
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -67,9 +73,11 @@ import com.spilol2.vanish.engine.Stroke
 import com.spilol2.vanish.ui.AppState
 import com.spilol2.vanish.ui.Screen
 import com.spilol2.vanish.ui.Tool
+import com.spilol2.vanish.util.Haptics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.hypot
 import kotlin.math.min
 
 /** Uniform fit-inside mapping between image pixels and canvas pixels. */
@@ -93,7 +101,8 @@ fun EditorScreen(
     val src = state.source ?: return
     val img = remember(src) { src.asImageBitmap() }
     val scope = rememberCoroutineScope()
-    val haptics = LocalHapticFeedback.current
+    val context = LocalContext.current
+    val haptics = remember { Haptics(context) }
 
     val sel = MaterialTheme.colorScheme.primary
     var toast by remember { mutableStateOf<String?>(null) }
@@ -110,11 +119,17 @@ fun EditorScreen(
 
     // live stroke being drawn (image-space points)
     val live = remember { mutableStateListOf<Offset>() }
+    var dragTravel by remember { mutableFloatStateOf(0f) }
+    var lassoSnapped by remember { mutableStateOf(false) }
     // cache tinted overlays for segment regions (convert each mask once)
     val regionOverlay = remember(src) { HashMap<Stroke.Region, androidx.compose.ui.graphics.ImageBitmap>() }
 
     fun remove() {
-        if (MaskRaster.isEmpty(state.strokes)) { toast = "Circle something to remove first"; return }
+        if (MaskRaster.isEmpty(state.strokes)) {
+            toast = "Circle something to remove first"
+            if (state.hapticsOnRemove) haptics.warning()
+            return
+        }
         if (state.busy) return
         state.busy = true
         scope.launch {
@@ -126,7 +141,7 @@ fun EditorScreen(
             state.lastMs = System.currentTimeMillis() - t0
             state.result = out
             state.busy = false
-            if (state.hapticsOnRemove) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            if (state.hapticsOnRemove) haptics.vanish()
             state.screen = Screen.Result
         }
     }
@@ -145,11 +160,18 @@ fun EditorScreen(
                             if (p.x < 0 || p.y < 0 || p.x >= img.width || p.y >= img.height) return@detectTapGestures
                             val emb = state.embedding
                             when {
-                                emb == null && state.encoding -> toast = "Preparing tap-to-select…"
-                                emb == null -> toast = "Tap-to-select unavailable — use lasso or brush"
+                                emb == null && state.encoding -> {
+                                    toast = "Preparing tap-to-select…"
+                                    if (state.hapticsOnRemove) haptics.warning()
+                                }
+                                emb == null -> {
+                                    toast = "Tap-to-select unavailable — use lasso or brush"
+                                    if (state.hapticsOnRemove) haptics.warning()
+                                }
                                 else -> scope.launch {
                                     val mask = segmenter.segment(emb, p.x, p.y)
                                     state.addStroke(Stroke.Region(mask))
+                                    if (state.hapticsOnRemove) haptics.click()
                                 }
                             }
                         }
@@ -158,10 +180,37 @@ fun EditorScreen(
                                 val fit = fitOf(Size(size.width.toFloat(), size.height.toFloat()), img.width, img.height)
                                 live.clear()
                                 live.add(fit.toImage(pos))
+                                dragTravel = 0f
+                                lassoSnapped = false
+                                if (state.hapticsOnRemove) haptics.tick()
                             },
                             onDrag = { change, _ ->
                                 val fit = fitOf(Size(size.width.toFloat(), size.height.toFloat()), img.width, img.height)
                                 live.add(fit.toImage(change.position))
+
+                                if (state.hapticsOnRemove && state.tool == Tool.Brush) {
+                                    // Textured feedback: a tiny tick every ~26dp of travel so a
+                                    // stroke feels grainy under the finger, not silent.
+                                    dragTravel += hypot(change.positionChange().x, change.positionChange().y)
+                                    val step = 26.dp.toPx()
+                                    if (dragTravel >= step) {
+                                        dragTravel -= step
+                                        haptics.texture()
+                                    }
+                                }
+
+                                if (state.hapticsOnRemove && state.tool == Tool.Lasso && !lassoSnapped && live.size > 6) {
+                                    val start = live.first()
+                                    val end = live.last()
+                                    val distPx = hypot(
+                                        (fit.toCanvas(start.x, start.y).x - fit.toCanvas(end.x, end.y).x),
+                                        (fit.toCanvas(start.x, start.y).y - fit.toCanvas(end.x, end.y).y),
+                                    )
+                                    if (distPx <= 28.dp.toPx()) {
+                                        lassoSnapped = true
+                                        haptics.snap()
+                                    }
+                                }
                             },
                             onDragEnd = {
                                 val pts = live.map { floatArrayOf(it.x, it.y) }
@@ -215,15 +264,33 @@ fun EditorScreen(
             onRemove = { remove() },
         )
 
-        // busy overlay
+        // busy overlay — a pulsing wand instead of a generic spinner
         if (state.busy) {
             Box(
                 Modifier.fillMaxSize().background(Color(0x99000000)),
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(color = Color.White)
-                    Spacer(Modifier.height(12.dp))
+                    val pulse = rememberInfiniteTransition(label = "wand-pulse")
+                    val scale by pulse.animateFloat(
+                        initialValue = 0.85f, targetValue = 1.15f,
+                        animationSpec = infiniteRepeatable(tween(620), RepeatMode.Reverse),
+                        label = "wand-scale",
+                    )
+                    val spin by pulse.animateFloat(
+                        initialValue = -12f, targetValue = 12f,
+                        animationSpec = infiniteRepeatable(tween(620), RepeatMode.Reverse),
+                        label = "wand-rotate",
+                    )
+                    Icon(
+                        Icons.Rounded.AutoFixHigh,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .graphicsLayer { scaleX = scale; scaleY = scale; rotationZ = spin },
+                    )
+                    Spacer(Modifier.height(14.dp))
                     Text("Removing…", color = Color.White, style = MaterialTheme.typography.bodyMedium)
                 }
             }

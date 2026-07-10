@@ -2,7 +2,6 @@ package com.spilol2.vanish.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,20 +29,26 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.spilol2.vanish.ui.AppState
 import com.spilol2.vanish.ui.Tool
+import com.spilol2.vanish.ui.pressable
+import com.spilol2.vanish.util.Haptics
 
 private val OnDark = Color(0xFFDCE6E3)
 
 @Composable
 fun androidx.compose.foundation.layout.BoxScope.TopBar(state: AppState, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val haptics = remember { Haptics(context) }
     Box(
         Modifier
             .align(Alignment.TopCenter)
@@ -63,8 +68,14 @@ fun androidx.compose.foundation.layout.BoxScope.TopBar(state: AppState, onBack: 
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f).padding(start = 6.dp),
             )
-            ScrimIcon(Icons.AutoMirrored.Rounded.Undo, "Undo", enabled = state.canUndo) { state.undo() }
-            ScrimIcon(Icons.AutoMirrored.Rounded.Redo, "Redo", enabled = state.canRedo) { state.redo() }
+            ScrimIcon(Icons.AutoMirrored.Rounded.Undo, "Undo", enabled = state.canUndo) {
+                state.undo()
+                if (state.hapticsOnRemove) haptics.softTick()
+            }
+            ScrimIcon(Icons.AutoMirrored.Rounded.Redo, "Redo", enabled = state.canRedo) {
+                state.redo()
+                if (state.hapticsOnRemove) haptics.softTick()
+            }
         }
     }
 }
@@ -74,6 +85,8 @@ fun androidx.compose.foundation.layout.BoxScope.BottomControls(
     state: AppState,
     onRemove: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val haptics = remember { Haptics(context) }
     Column(
         Modifier
             .align(Alignment.BottomCenter)
@@ -102,9 +115,13 @@ fun androidx.compose.foundation.layout.BoxScope.BottomControls(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                ToolButton(Icons.Rounded.TouchApp, "Tap", state.tool == Tool.Tap) { state.tool = Tool.Tap }
-                ToolButton(Icons.Rounded.Gesture, "Lasso", state.tool == Tool.Lasso) { state.tool = Tool.Lasso }
-                ToolButton(Icons.Rounded.Brush, "Brush", state.tool == Tool.Brush) { state.tool = Tool.Brush }
+                fun selectTool(t: Tool) {
+                    state.tool = t
+                    if (state.hapticsOnRemove) haptics.tick()
+                }
+                ToolButton(Icons.Rounded.TouchApp, "Tap", state.tool == Tool.Tap) { selectTool(Tool.Tap) }
+                ToolButton(Icons.Rounded.Gesture, "Lasso", state.tool == Tool.Lasso) { selectTool(Tool.Lasso) }
+                ToolButton(Icons.Rounded.Brush, "Brush", state.tool == Tool.Brush) { selectTool(Tool.Brush) }
             }
             // remove FAB
             Row(
@@ -112,7 +129,10 @@ fun androidx.compose.foundation.layout.BoxScope.BottomControls(
                     .height(56.dp)
                     .clip(RoundedCornerShape(18.dp))
                     .background(MaterialTheme.colorScheme.primaryContainer)
-                    .clickable { onRemove() }
+                    .pressable(onClick = {
+                        if (state.hapticsOnRemove) haptics.click()
+                        onRemove()
+                    })
                     .padding(horizontal = 20.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(9.dp),
@@ -144,7 +164,7 @@ private fun ScrimIcon(
         Modifier
             .size(42.dp)
             .clip(RoundedCornerShape(21.dp))
-            .then(if (enabled) Modifier.clickable { onClick() } else Modifier)
+            .pressable(onClick = onClick, enabled = enabled, scaleDown = 0.82f)
             .padding(9.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -159,7 +179,7 @@ private fun ToolButton(icon: ImageVector, desc: String, selected: Boolean, onCli
             .size(44.dp)
             .clip(RoundedCornerShape(22.dp))
             .background(if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
-            .clickable { onClick() },
+            .pressable(onClick = onClick, scaleDown = 0.8f),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -178,7 +198,7 @@ private fun SuggestChip(icon: ImageVector, label: String, onClick: () -> Unit) {
             .clip(RoundedCornerShape(8.dp))
             .background(Color(0x9E101615))
             .border(1.dp, Color(0x38FFFFFF), RoundedCornerShape(8.dp))
-            .clickable { onClick() }
+            .pressable(onClick = onClick, scaleDown = 0.94f)
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),

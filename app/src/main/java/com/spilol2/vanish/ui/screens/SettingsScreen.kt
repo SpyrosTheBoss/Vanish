@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import com.spilol2.vanish.engine.InpaintModelId
 import com.spilol2.vanish.engine.ModelStore
 import com.spilol2.vanish.ui.AppState
+import com.spilol2.vanish.util.Haptics
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,23 +50,36 @@ fun SettingsScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
+    val haptics = remember { Haptics(context) }
     // model id -> download progress [0,1]; present only while downloading
     val progress = remember { mutableStateMapOf<InpaintModelId, Float>() }
 
     fun selectOrDownload(m: InpaintModelId) {
         if (ModelStore.isReady(context, m)) {
             state.inpaintModel = m
+            if (state.hapticsOnRemove) haptics.tick()
             return
         }
         if (progress.containsKey(m)) return // already downloading
         scope.launch {
             progress[m] = 0f
-            val ok = ModelStore.download(context, m) { p -> progress[m] = p }
+            var lastMilestone = 0
+            val ok = ModelStore.download(context, m) { p ->
+                progress[m] = p
+                // a light tick every 25% so a long download doesn't feel silent
+                val milestone = (p * 4).toInt()
+                if (milestone > lastMilestone && state.hapticsOnRemove) {
+                    lastMilestone = milestone
+                    haptics.tick()
+                }
+            }
             progress.remove(m)
             if (ok) {
                 state.inpaintModel = m
+                if (state.hapticsOnRemove) haptics.success()
                 snackbar.showSnackbar("${m.display} downloaded")
             } else {
+                if (state.hapticsOnRemove) haptics.warning()
                 snackbar.showSnackbar("Download failed — check your connection")
             }
         }
@@ -110,18 +124,28 @@ fun SettingsScreen(
             SwitchRow(
                 "Dynamic color", "Match your wallpaper",
                 state.dynamicColor,
-            ) { state.dynamicColor = it }
+            ) {
+                if (state.hapticsOnRemove) haptics.tick()
+                state.dynamicColor = it
+            }
 
             Divider()
             GroupLabel("Behavior")
             SwitchRow(
-                "Haptics on remove", "Small tick when an object vanishes",
+                "Haptics on remove", "Feel every tap, snap, and vanish",
                 state.hapticsOnRemove,
-            ) { state.hapticsOnRemove = it }
+            ) {
+                if (state.hapticsOnRemove) haptics.tick() // one last buzz goodbye if turning off
+                state.hapticsOnRemove = it
+                if (it) haptics.tick() // and a hello if turning on
+            }
             SwitchRow(
                 "Keep original photo", "Edits are always saved as a copy",
                 state.keepOriginal,
-            ) { state.keepOriginal = it }
+            ) {
+                if (state.hapticsOnRemove) haptics.tick()
+                state.keepOriginal = it
+            }
 
             Divider()
             GroupLabel("About")

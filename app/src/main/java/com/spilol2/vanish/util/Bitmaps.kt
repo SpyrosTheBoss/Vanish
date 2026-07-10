@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.net.Uri
+import android.util.Size
 
 /** Longest edge we keep photos at, to bound memory and processing time. */
 private const val MAX_EDGE = 2048
@@ -29,6 +30,13 @@ fun decodeBitmap(context: Context, uri: Uri): Bitmap? = try {
         if (bmp.config == Bitmap.Config.ARGB_8888) bmp
         else bmp.copy(Bitmap.Config.ARGB_8888, true)
     }
+} catch (e: Exception) {
+    null
+}
+
+/** Fast, small thumbnail for a MediaStore [uri] — for grids, not editing. */
+fun loadThumbnail(context: Context, uri: Uri, size: Size): Bitmap? = try {
+    context.contentResolver.loadThumbnail(uri, size, null)
 } catch (e: Exception) {
     null
 }
